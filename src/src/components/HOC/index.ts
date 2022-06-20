@@ -1,0 +1,1 @@
+export { default as withAutoColumn } from "./with-auto-column";
