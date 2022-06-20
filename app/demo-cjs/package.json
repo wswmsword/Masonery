@@ -10,12 +10,14 @@
     "@types/node": "^16.11.41",
     "@types/react": "^18.0.14",
     "@types/react-dom": "^18.0.5",
+    "@types/react-syntax-highlighter": "^15.5.2",
+    "masonry": "file:../../dist/cjs",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
+    "react-syntax-highlighter": "^15.5.0",
     "typescript": "^4.7.4",
-    "web-vitals": "^2.1.4",
-    "masonry": "file:../../dist/cjs"
+    "web-vitals": "^2.1.4"
   },
   "devDependencies": {
     "@types/masonry": "file:../../dist/cjs/types"
