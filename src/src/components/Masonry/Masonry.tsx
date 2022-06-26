@@ -1,16 +1,55 @@
 import React, { useState, useRef, useEffect, Fragment, useCallback } from "react";
 import styles from "./Masonry.module.css";
 
+interface ItemCompProps {
+	info: itemInfo; // 项目数据
+	colId: number; // 项目所处的纵列
+	selected: boolean; // 项目是否被选中
+	selectedItem: number | null; // 被选中的项目 id
+	setItemOffsetYs: (ys: Array<readonly [number, number]>) => void; // 设置项目的纵向偏移
+	itemsDividedByCols: itemInfo[][]; // 按纵列分的项目数据
+	itemInfos: itemInfo[]; // 所有项目数据
+	deselect: () => void; // 取消选中函数
+	select: (id: number) => void; // 选中函数
+	placeH: number; // 详情区域的高度
+	gapY: number; // 纵向的项目间的间隔
+	gapX: number // 横向的项目间的间隔
+	setPlaceTop: (t: number) => void; // 设置详情区域距离顶端的距离
+	setPlaceData: any; // 设置详情区域的数据
+	originH: number; // 原始容器的高度
+	setH: (h: number) => void; // 设置容器的高度
+	readyToCalc: () => void; // 设置项目加载完成，可以计算位置了
+}
+
+interface PlaceCompProps {
+	selectedItem: number | null; // 被选中的项目 id
+	setItemOffsetYs: (itemsMapAry: Array<readonly [number, number]>) => void; // 设置项目的纵向偏移
+	itemsDividedByCols: itemInfo[][]; // 按纵列分的项目数据
+	itemInfosRef: React.MutableRefObject<itemInfo[]>; // 所有项目数据
+	deselect: () => void; // 取消选中函数
+	select: (id: number) => void; // 选中函数
+	placeH: number; // 详情区域的高度
+	gapY: number; // 纵向的项目间的间隔
+	gapX: number; // 横向的项目间的间隔
+	setPlaceTop: (t: number) => void; // 设置详情区域距离顶端的距离
+	setPlaceData: any; // 设置详情区域的数据
+	originH: number; // 原始容器的高度
+	setH: (h: number) => void; // 设置容器的高度
+	context: unknown;
+}
+
 interface MasonryProps {
 	width?: number,
 	itemWidth: number,
-	colNum: number,
+	colsNum?: number,
 	gapX?: number,
 	gapY?: number,
 	placeHeight?: number,
-	itemsData: object[],
-	ItemComp?: React.ComponentType<any>,
-	PlaceComp?: React.ComponentType<any>,
+	itemsData: Record<string, unknown>[],
+	ItemComp: React.ComponentType<ItemCompProps>,
+	PlaceComp?: React.ComponentType<PlaceCompProps>,
+	disableGapX?: boolean,
+	disableWrap?: boolean,
 }
 
 interface itemInfo {
@@ -20,7 +59,7 @@ interface itemInfo {
 	height: number,
 	colId: number,
 	offsetY: number,
-	data: object,
+	data: Record<string, unknown>,
 }
 
 /**
@@ -29,15 +68,23 @@ interface itemInfo {
  * 设置宽度，子项目将均匀布局在宽度中；设置左右间隔，子项目将按间隔
  * 布局，宽度即子项目间隔后的宽度。
  */
-function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight = 521, ItemComp, itemsData = [], PlaceComp }: MasonryProps) {
+function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsNum, placeHeight, ItemComp, itemsData = [], PlaceComp }: MasonryProps) {
+	const _disableGapX = disableGapX ?? false,
+		_width = width ?? window.document.getElementsByTagName('html')[0].clientWidth,
+		_disableWrap = disableWrap ?? false,
+		_itemWidth = itemWidth,
+		_gapX = _disableGapX ? calcGapX(_width, _itemWidth) : (gapX ?? 0),
+		_gapY = gapY ?? 0,
+		_colsNum = colsNum ?? (_disableGapX ? (Math.floor(_width / _itemWidth)) : calColsNum(_itemWidth, _itemWidth, _gapX, _width)),
+		_placeHeight = placeHeight ?? 521;
 	// 容器宽度
-	const [w, setW] = useState(0);
+	const [w, setW] = useState(_width);
 	// 容器高度
 	const [h, setH] = useState(0);
 	// 容器的初始高度
 	const [h2, setH2] = useState(0);
 	// 项目横向间隔
-	const [g, setG] = useState(0);
+	const [g, setG] = useState(_gapX);
 	// top, left, ItemComp，项目信息
 	const [itemInfos, setItemInfos] = useState<itemInfo[]>([]);
 	const itemInfosRef = useRef<itemInfo[]>(itemInfos);
@@ -53,6 +100,25 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 	const [loadedItems, setLoaded] = useState<Array<boolean | undefined>>([]);
 
 	const wrapperRef = useRef<HTMLDivElement>(null);
+
+	const [hasMoveAnime, setHasMoveAnime] = useState(false);
+
+	useEffect(() => {
+		let width = null;
+		let gapX = null;
+		if (_disableWrap) {
+			width = _width;
+		} else {
+			width = _gapX * (_colsNum - 1) + _itemWidth * _colsNum;
+		}
+		setW(width);
+		if (_disableGapX) {
+			gapX = calcGapX(width, _itemWidth);
+		} else {
+			gapX = _gapX;
+		}
+		setG(gapX);
+	}, [_width, _disableWrap, _itemWidth, _disableGapX, _gapX, _colsNum]);
 
 	useEffect(() => {
 		// 子项目数目
@@ -70,18 +136,12 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 			})));
 			return concatedItems;
 		});
-	}, [itemsData]);
 
-	useEffect(() => {
-		// 如果提供宽度就根据宽度计算横向间隔，如果提供间隔就取间隔
-		if (width == null) {
-			setG(gapX || 36);
-		} else {
-			setG(Math.floor((width - itemWidth * colNum) / (colNum - 1)));
-		}
-		// 如果提供宽度就取宽度，如果提供左右间隔就使用左右间隔计算宽度
-		setW(width || gapX * (colNum - 1) + itemWidth * colNum);
-	}, [width, gapX, colNum, itemWidth]);
+		setHasMoveAnime(false);
+		setTimeout(() => {
+			setHasMoveAnime(true);
+		}, 69);
+	}, [itemsData]);
 
 	useEffect(() => {
 		// 加载完成的项目数量
@@ -96,9 +156,10 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 		if (wrapperEl == null) { return; }
 		const itemHs = Array.prototype.map.call<NodeListOf<ChildNode>, any, number[]>(wrapperEl.childNodes, (node: HTMLDivElement) => node.clientHeight);
 		// 列的左边距离
-		const colLs = [0];
-		for (let i = 1; i < colNum; ++i) {
-			colLs.push(colLs[i - 1] + itemWidth + g);
+		const leftSideColLeft = _disableWrap ? disableGapX ? 0 : ((_width - _itemWidth * _colsNum - g * (_colsNum - 1)) / 2) : 0;
+		const colLs = [leftSideColLeft];
+		for (let i = 1; i < _colsNum; ++i) {
+			colLs.push(colLs[i - 1] + _itemWidth + g);
 		}
 		// 项目的左边距离
 		const itemLs: number[] = [];
@@ -111,7 +172,7 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 		// 项目的所在列 id
 		const itemCs: number[] = [];
 		// 第一横排的容器高度、项目左边距离、项目顶部距离；纵列最下面项目的 id
-		for (let i = 0; i < colNum; ++i) {
+		for (let i = 0; i < _colsNum; ++i) {
 			wrapperH = Math.max(wrapperH, itemHs[i]);
 			itemLs.push(colLs[i]);
 			itemTs.push(0);
@@ -119,10 +180,10 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 			colBottomIds.push(i);
 		}
 		// 第二行开始到最后一个项目的容器高度、项目左边距离、项目顶部距离；纵列最下面项目的 id
-		for (let i = colNum; i < itemsLen; ++i) {
+		for (let i = _colsNum; i < itemsLen; ++i) {
 			// 当前最短的纵列的列 id 与这一列最底部的项目 id
-			const { minColId, minItemId } = getMinHeight(colNum, colBottomIds, itemTs, itemHs);
-			const currentTop = itemTs[minItemId] + itemHs[minItemId] + gapY;
+			const { minColId, minItemId } = getMinHeight(_colsNum, colBottomIds, itemTs, itemHs);
+			const currentTop = itemTs[minItemId] + itemHs[minItemId] + _gapY;
 			wrapperH = Math.max(currentTop + itemHs[i], wrapperH);
 			itemLs.push(colLs[minColId]);
 			itemTs.push(currentTop);
@@ -148,9 +209,9 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 			const curCol = cur.colId;
 			acc[curCol] = acc[curCol].concat(cur);
 			return acc;
-		}, [...Array(colNum)].fill([]));
+		}, [...Array(_colsNum)].fill([]));
 		setInfosDividedByCols(infosDividedByCols);
-	}, [wrapperRef, w, itemWidth, colNum, g, gapY, itemsData, loadedItems]);
+	}, [wrapperRef, _itemWidth, _colsNum, g, _gapY, itemsData, loadedItems, _disableWrap, w]);
 
 	/**
 	 * 指定 item 设置偏移
@@ -198,13 +259,13 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 			}}>
 			{itemInfos.map((item, i) => <Fragment key={i}>
 				<div
-					className={`${styles.item} ${item.id === selectedItem ? styles.selected : ''}`}
+					className={`${styles.item} ${item.id === selectedItem ? styles.selected : ''} ${hasMoveAnime ? styles.transition_top : ''}`}
 					style={{
 						position: "absolute",
 						transform: `translateY(${item.offsetY}px)`,
 						left: `${item.left}px`,
 						top: `${item.top}px`,
-						width: `${itemWidth}px`,
+						width: `${_itemWidth}px`,
 					}}>
 					{ItemComp && <ItemComp
 						{...item.data}
@@ -217,9 +278,9 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 						itemInfos={itemInfos} // 所有项目数据
 						deselect={deselect} // 取消选中函数
 						select={select} // 选中函数
-						placeH={placeHeight} // 详情区域的高度
-						gapY={gapY} // 纵向的项目间的间隔
-						gapX={gapX} // 横向的项目间的间隔
+						placeH={_placeHeight} // 详情区域的高度
+						gapY={_gapY} // 纵向的项目间的间隔
+						gapX={_gapX} // 横向的项目间的间隔
 						setPlaceTop={setPlaceTop} // 设置详情区域距离顶端的距离
 						setPlaceData={setPlaceData} // 设置详情区域的数据
 						originH={h2} // 原始容器的高度
@@ -233,7 +294,7 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 					className={styles.placeholder}
 					style={{
 						top: `${placeT}px`,
-						height: `${placeHeight}px`,
+						height: `${_placeHeight}px`,
 					}}>
 					<PlaceComp
 						selectedItem={selectedItem} // 被选中的项目 id
@@ -242,9 +303,9 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 						itemInfosRef={itemInfosRef} // 所有项目数据
 						deselect={deselect} // 取消选中函数
 						select={select} // 选中函数
-						placeH={placeHeight} // 详情区域的高度
-						gapY={gapY} // 纵向的项目间的间隔
-						gapX={gapX} // 横向的项目间的间隔
+						placeH={_placeHeight} // 详情区域的高度
+						gapY={_gapY} // 纵向的项目间的间隔
+						gapX={_gapX} // 横向的项目间的间隔
 						setPlaceTop={setPlaceTop} // 设置详情区域距离顶端的距离
 						setPlaceData={setPlaceData} // 设置详情区域的数据
 						originH={h2} // 原始容器的高度
@@ -260,11 +321,11 @@ function Masonry({ width, itemWidth, colNum, gapX = 36, gapY = 36, placeHeight =
 export default Masonry;
 
 
-function getMinHeight(colNum: number, colBottomIds: number[], itemTops: number[], itemHeights: number[]) {
+function getMinHeight(colsNum: number, colBottomIds: number[], itemTops: number[], itemHeights: number[]) {
 	let minTop = itemTops[colBottomIds[0]] + itemHeights[colBottomIds[0]],
 		minItemId = colBottomIds[0],
 		minColId = 0;
-	for (let i = 1; i < colNum; ++i) {
+	for (let i = 1; i < colsNum; ++i) {
 		const itemId = colBottomIds[i];
 		const curTop = itemTops[itemId] + itemHeights[itemId];
 		if (curTop < minTop) {
@@ -274,4 +335,17 @@ function getMinHeight(colNum: number, colBottomIds: number[], itemTops: number[]
 		}
 	}
 	return { minItemId, minColId };
+}
+
+function calColsNum(accWidth: number, itemWidth: number, gap: number, windowW: number): number {
+	if (accWidth > windowW) { return 0; }
+	return 1 + calColsNum(accWidth + gap + itemWidth, itemWidth, gap, windowW);
+}
+
+function calcGapX(width: number, itemWidth: number): number {
+	const maxCols = Math.floor(width / itemWidth);
+	const colsWidth = maxCols * itemWidth;
+	const totalGapX = width - colsWidth;
+	const gapX = totalGapX / (maxCols - 1);
+	return gapX;
 }

@@ -8,26 +8,26 @@ interface hocProps {
 }
 
 interface ExtraInfo {
-	colNum: number;
+	colsNum: number;
 }
 
 /**根据屏幕宽度、每个项目的左右间隔、项目宽度，计算一行能放的项目数量 */
 export default function withAutoColumn<P>(WrappedComponent: React.ComponentType<P>, { gap, itemW }: hocProps) {
 	return function WithAutoColumn(props: Omit<P, keyof ExtraInfo>) {
-		const [colNum, setColNum] = useState<number | null>(null);
+		const [colsNum, setColNum] = useState<number | null>(null);
 		const size = useWindowSize();
 
 		useEffect(() => {
 			const windowW = size.width;
 			if (windowW == null) { return; }
-			const colNum = calColsNum(itemW, itemW, gap, windowW);
-			setColNum(colNum - 1);
+			const colsNum = calColsNum(itemW, itemW, gap, windowW);
+			setColNum(colsNum);
 		}, [size]);
 
-		if (colNum) {
+		if (colsNum) {
 			return <WrappedComponent
 				{...(props) as P}
-				colNum={colNum}
+				colsNum={colsNum}
 			/>;
 		} else {
 			return <>Now Loading...</>;

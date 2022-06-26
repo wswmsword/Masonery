@@ -1,25 +1,41 @@
 .wrapper {
-    position: relative;
-    margin: 0 auto;
-    overflow: hidden;
-  }
-  .pin_item_wrapper {
-    /* transition: transform 1.2s; */
-  }
-  .item {
-    transition: top .3s, left .3s, transform .3s;
-    cursor: pointer;
-    z-index: 1;
-  }
-  
-  .selected {
-    /* filter: contrast(0.5); */
-  }
-  
-  .placeholder {
-    position: absolute;
-    width: 100%;
-    height: auto;
-    z-index: 0;
-    transition: top .3s, left .3s, transform .3s;
-  }
+  position: relative;
+  margin  : 0 auto;
+  overflow: hidden;
+}
+
+.pin_item_wrapper {
+  /* transition: transform 1.2s; */
+}
+
+.item {
+  /* transition: top .3s, left .3s, transform .3s; */
+  transition: transform .3s;
+  cursor    : pointer;
+  z-index   : 1;
+}
+
+.transition_top {
+  transition: top .3s, left .3s, transform .3s;
+}
+
+.selected {
+  /* filter: contrast(0.5); */
+}
+
+.placeholder {
+  position  : absolute;
+  width     : 100%;
+  height    : auto;
+  z-index   : 0;
+  transition: top .3s, left .3s, transform .3s;
+}
+
+.transparent {
+  opacity: 0;
+  transition: opacity .3s;
+}
+
+.visible {
+  opacity: 1;
+}
