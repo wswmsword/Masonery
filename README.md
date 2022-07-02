@@ -1,10 +1,12 @@
 # Masonry
 
+[English](README_EN.md)
+
 > [Masonry creates a deterministic grid layout, positioning items based on available vertical space.](https://gestalt.netlify.app/masonry)
 
-## How to debug?
+## 调试组件
 
-### Edit and Watch Source Code
+### 编辑和监听组件
 
 ```bash
 $ cd src
@@ -12,9 +14,9 @@ $ npm install
 $ npm run watch
 ```
 
-Now, we can edit and save any files in `src` of root directory, the new folder called `dist` will be built in root directory.
+现在我们可以自由编辑根目录下`src`内的组件源码，每次编辑并保存之后，在根目录下会生成`dist`文件夹。`dist`文件夹里是可以被引用的`commonjs`和`es6`模块。
 
-### Debug Source Code at App Environment
+### 在应用环境里调试组件
 
 ```bash
 $ cd ..
@@ -23,7 +25,7 @@ $ npm install
 $ npm run start
 ```
 
-When the `dist` is built by changing the source code, the app in the browser will referesh immediately, and we will see the latest changes of the source code at app.
+使用`app/demo-cjs`的应用环境，或者创建一个应用环境并引用`dist`内的模块，安装并运行应用环境。当我们编辑并保存根目录`src`组件源码的时候，浏览器会立即刷新，并且看到最新的更改。
 
 ## Component Intro
 
@@ -95,7 +97,7 @@ const MasonryWithAutoCol = withAutoColumn<MasonryProps>(Masonry, {
 
 ## 指定 3 列，项目之间间隔 18 像素
 
-```javascriopt
+```javascript
 <Masonry
 	itemWidth={169}
 	itemsData={itemsData}

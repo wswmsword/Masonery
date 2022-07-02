@@ -1,10 +1,37 @@
 # Masonry
 
+> [Masonry creates a deterministic grid layout, positioning items based on available vertical space.](https://gestalt.netlify.app/masonry)
+
+## How to debug?
+
+### Edit and Watch Source Code of Masonry
+
+```bash
+$ cd src
+$ npm install
+$ npm run watch
+```
+
+Now, we can edit and save any files in `src` of root directory, the new folder called `dist` will be built in root directory.
+
+### Debug Source Code at App Environment
+
+```bash
+$ cd ..
+$ cd app/demo-cjs
+$ npm install
+$ npm run start
+```
+
+When the `dist` is built by changing the source code, the app in the browser will referesh immediately, and we will see the latest changes of the source code at app.
+
+## Component Intro
+
 文档里的“项目”是指砖块布局里的每个砖块组件，“容器”是指砖块布局自身，也就是容纳砖块组件的父组件 wrapper。
 
 ## Props
 
-| Name | Type | Default | isRequired | Description |
+| Name | Type | Default | isRequired | Description
 |:--|:--|:--|:--|:--|
 | width | number | 屏幕宽度 | 🔴 | 容器宽度 |
 | disableWrap | boolean | false | 🔴 | 容器包裹住项目，宽度是项目加间距的长度 |
@@ -68,7 +95,7 @@ const MasonryWithAutoCol = withAutoColumn<MasonryProps>(Masonry, {
 
 ## 指定 3 列，项目之间间隔 18 像素
 
-```javascriopt
+```javascript
 <Masonry
 	itemWidth={169}
 	itemsData={itemsData}
