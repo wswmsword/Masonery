@@ -8,7 +8,7 @@ interface ItemCompProps {
 	selectedItem: number | null; // 被选中的项目 id
 	setItemOffsetYs: (ys: Array<readonly [number, number]>) => void; // 设置项目的纵向偏移
 	itemsDividedByCols: itemInfo[][]; // 按纵列分的项目数据
-	itemInfos: itemInfo[]; // 所有项目数据
+	itemsInfo: itemInfo[]; // 所有项目数据
 	deselect: () => void; // 取消选中函数
 	select: (id: number) => void; // 选中函数
 	placeH: number; // 详情区域的高度
@@ -25,7 +25,7 @@ interface PlaceCompProps {
 	selectedItem: number | null; // 被选中的项目 id
 	setItemOffsetYs: (itemsMapAry: Array<readonly [number, number]>) => void; // 设置项目的纵向偏移
 	itemsDividedByCols: itemInfo[][]; // 按纵列分的项目数据
-	itemInfosRef: React.MutableRefObject<itemInfo[]>; // 所有项目数据
+	itemsInfoRef: React.MutableRefObject<itemInfo[]>; // 所有项目数据
 	deselect: () => void; // 取消选中函数
 	select: (id: number) => void; // 选中函数
 	placeH: number; // 详情区域的高度
@@ -52,6 +52,7 @@ interface MasonryProps {
 	disableWrap?: boolean,
 	maxHeight?: number,
 	minHeight?: number,
+	itemsHeights?: Array<number>,
 }
 
 interface itemInfo {
@@ -71,7 +72,7 @@ interface itemInfo {
  * 设置宽度，子项目将均匀布局在宽度中；设置左右间隔，子项目将按间隔
  * 布局，宽度即子项目间隔后的宽度。
  */
-function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsNum, placeHeight, ItemComp, itemsData = [], maxHeight, minHeight, PlaceComp }: MasonryProps) {
+function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsNum, placeHeight, ItemComp, itemsData = [], maxHeight, minHeight, itemsHeights, PlaceComp }: MasonryProps) {
 	const _disableGapX = disableGapX ?? false,
 		_width = width ?? window.document.getElementsByTagName('html')[0].clientWidth,
 		_disableWrap = disableWrap ?? false,
@@ -80,7 +81,8 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 		_gapY = gapY ?? 0,
 		_colsNum = colsNum ?? (_disableGapX ? (Math.floor(_width / _itemWidth)) : calColsNum(_itemWidth, _itemWidth, _gapX, _width)),
 		_placeHeight = placeHeight ?? 521,
-		_maxHeight = maxHeight ?? Infinity, _minHeight = minHeight ?? -1;
+		_maxHeight = maxHeight ?? Infinity, _minHeight = minHeight ?? -1,
+		_itemsHeights = itemsHeights ?? [];
 	// 容器宽度
 	const [w, setW] = useState(_width);
 	// 容器高度
@@ -90,8 +92,8 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 	// 项目横向间隔
 	const [g, setG] = useState(_gapX);
 	// top, left, ItemComp，项目信息
-	const [itemInfos, setItemInfos] = useState<itemInfo[]>([]);
-	const itemInfosRef = useRef<itemInfo[]>(itemInfos);
+	const [itemsInfo, setItemsInfo] = useState<itemInfo[]>([]);
+	const itemsInfoRef = useRef<itemInfo[]>(itemsInfo);
 	// 每一纵列由上至下的项目信息
 	const [infosDividedByCols, setInfosDividedByCols] = useState<itemInfo[][]>([]);
 	// 选中的项目 id
@@ -125,16 +127,17 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 	}, [_width, _disableWrap, _itemWidth, _disableGapX, _gapX, _colsNum]);
 
 	useEffect(() => {
+		const expectedItemsHeights = _itemsHeights.length === itemsData.length;
 		// 子项目数目
 		const itemsLen = itemsData.length;
-		setItemInfos(v => {
+		setItemsInfo(v => {
 			const prevLen = v.length;
 			const concatedItems = v.concat([...Array(itemsLen - prevLen)].map((_, i) => ({
 				id: 0,
 				top: 0, // 项目顶部与容器顶部的距离
 				left: 0, // 项目的左边与容器左边的距离
-				height: 0, // 项目高度
-				visualHeight: 0, // 项目高度
+				height: expectedItemsHeights ? _itemsHeights[prevLen + i] : 0, // 项目高度
+				visualHeight: expectedItemsHeights ? _itemsHeights[prevLen + i] : 0, // 项目高度
 				colId: 0, // 项目所在纵列
 				offsetY: 0, // 项目偏移距离
 				data: itemsData[prevLen + i],
@@ -146,22 +149,25 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 		setTimeout(() => {
 			setHasMoveAnime(true);
 		}, 69);
-	}, [itemsData]);
+	}, [itemsData, itemsHeights]);
 
 	useEffect(() => {
-		// 加载完成的项目数量
-		const loadedItemsLen = loadedItems.filter(b => b).length;
-		// 所有项目数量
-		const totalItemsLen = itemsData.length;
-		if (loadedItemsLen !== totalItemsLen) { return; }
+		const expectedItemsHeights = _itemsHeights.length === itemsData.length;
+		if (! expectedItemsHeights) {
+			// 加载完成的项目数量
+			const loadedItemsLen = loadedItems.filter(b => b).length;
+			// 所有项目数量
+			const totalItemsLen = itemsData.length;
+			if (loadedItemsLen !== totalItemsLen) { return; }
+		}
 		// 子项目数目
 		const itemsLen = itemsData.length;
 		// 项目的高度
 		const wrapperEl = wrapperRef.current;
 		if (wrapperEl == null) { return; }
-		const itemHs = Array.prototype.map.call<NodeListOf<ChildNode>, any, number[]>(wrapperEl.childNodes, (node: HTMLDivElement) => node.children[0].clientHeight);
+		const itemHs = expectedItemsHeights ? _itemsHeights : Array.prototype.map.call<NodeListOf<ChildNode>, any, number[]>(wrapperEl.childNodes, (node: HTMLDivElement) => node.children[0].clientHeight);
 		// 被最大高度和最小高度限定的项目高度
-		const visualHs = itemHs.map(height => height > _maxHeight ? _maxHeight : height < _minHeight ? _minHeight : height);
+		const visualHs = expectedItemsHeights ? _itemsHeights : itemHs.map(height => height > _maxHeight ? _maxHeight : height < _minHeight ? _minHeight : height);
 		// 列的左边距离
 		const leftSideColLeft = _disableWrap ? disableGapX ? 0 : ((_width - _itemWidth * _colsNum - g * (_colsNum - 1)) / 2) : 0;
 		const colLs = [leftSideColLeft];
@@ -210,8 +216,8 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 			offsetY: 0,
 			data: itemsData[i],
 		}));
-		setItemInfos(newItemInfos);
-		itemInfosRef.current = newItemInfos;
+		setItemsInfo(newItemInfos);
+		itemsInfoRef.current = newItemInfos;
 		// 每一纵列的项目信息
 		const infosDividedByCols: itemInfo[][] = newItemInfos.reduce((acc, cur) => {
 			const curCol = cur.colId;
@@ -219,7 +225,7 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 			return acc;
 		}, [...Array(_colsNum)].fill([]));
 		setInfosDividedByCols(infosDividedByCols);
-	}, [wrapperRef, _itemWidth, _colsNum, g, _gapY, itemsData, loadedItems, _disableWrap, w]);
+	}, [wrapperRef, _itemWidth, _colsNum, g, _gapY, itemsData, loadedItems, _disableWrap, w, /* _itemsHeights, */ _minHeight, _maxHeight, itemsHeights]);
 
 	/**
 	 * 指定 item 设置偏移
@@ -231,15 +237,15 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 	 */
 	const setItemOffsetYs = useCallback((itemsMapAry: Array<readonly [number, number]>) => {
 		const offsetMap = new Map<number, number>(itemsMapAry);
-		setItemInfos((itemInfos: itemInfo[]) => {
-			const res = itemInfos.map((item: itemInfo) => {
+		setItemsInfo((itemsInfo: itemInfo[]) => {
+			const res = itemsInfo.map((item: itemInfo) => {
 				const offsetY = offsetMap.get(item.id) == null ? item.offsetY : offsetMap.get(item.id) as number;
 				return {
 					...item,
 					offsetY,
 				};
 			});
-			itemInfosRef.current = res;
+			itemsInfoRef.current = res;
 			return res;
 		});
 	}, []);
@@ -265,7 +271,7 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 				width: `${w}px`,
 				height: `${h}px`,
 			}}>
-			{itemInfos.map((item, i) => <Fragment key={i}>
+			{itemsInfo.map((item, i) => <Fragment key={i}>
 				<div
 					className={`${styles.item} ${item.id === selectedItem ? styles.selected : ''} ${hasMoveAnime ? styles.transition_top : ''}`}
 					style={{
@@ -284,7 +290,7 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 						selectedItem={selectedItem} // 被选中的项目 id
 						setItemOffsetYs={setItemOffsetYs} // 设置项目的纵向偏移
 						itemsDividedByCols={infosDividedByCols} // 按纵列分的项目数据
-						itemInfos={itemInfos} // 所有项目数据
+						itemsInfo={itemsInfo} // 所有项目数据
 						deselect={deselect} // 取消选中函数
 						select={select} // 选中函数
 						placeH={_placeHeight} // 详情区域的高度
@@ -309,7 +315,7 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 						selectedItem={selectedItem} // 被选中的项目 id
 						setItemOffsetYs={setItemOffsetYs} // 设置项目的纵向偏移
 						itemsDividedByCols={infosDividedByCols} // 按纵列分的项目数据
-						itemInfosRef={itemInfosRef} // 所有项目数据
+						itemsInfoRef={itemsInfoRef} // 所有项目数据
 						deselect={deselect} // 取消选中函数
 						select={select} // 选中函数
 						placeH={_placeHeight} // 详情区域的高度
