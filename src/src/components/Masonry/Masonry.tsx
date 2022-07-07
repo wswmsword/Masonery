@@ -50,6 +50,8 @@ interface MasonryProps {
 	PlaceComp?: React.ComponentType<PlaceCompProps>,
 	disableGapX?: boolean,
 	disableWrap?: boolean,
+	maxHeight?: number,
+	minHeight?: number,
 }
 
 interface itemInfo {
@@ -57,6 +59,7 @@ interface itemInfo {
 	top: number,
 	left: number,
 	height: number,
+	visualHeight: number,
 	colId: number,
 	offsetY: number,
 	data: Record<string, unknown>,
@@ -68,7 +71,7 @@ interface itemInfo {
  * 设置宽度，子项目将均匀布局在宽度中；设置左右间隔，子项目将按间隔
  * 布局，宽度即子项目间隔后的宽度。
  */
-function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsNum, placeHeight, ItemComp, itemsData = [], PlaceComp }: MasonryProps) {
+function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsNum, placeHeight, ItemComp, itemsData = [], maxHeight, minHeight, PlaceComp }: MasonryProps) {
 	const _disableGapX = disableGapX ?? false,
 		_width = width ?? window.document.getElementsByTagName('html')[0].clientWidth,
 		_disableWrap = disableWrap ?? false,
@@ -76,7 +79,8 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 		_gapX = _disableGapX ? calcGapX(_width, _itemWidth) : (gapX ?? 0),
 		_gapY = gapY ?? 0,
 		_colsNum = colsNum ?? (_disableGapX ? (Math.floor(_width / _itemWidth)) : calColsNum(_itemWidth, _itemWidth, _gapX, _width)),
-		_placeHeight = placeHeight ?? 521;
+		_placeHeight = placeHeight ?? 521,
+		_maxHeight = maxHeight ?? Infinity, _minHeight = minHeight ?? -1;
 	// 容器宽度
 	const [w, setW] = useState(_width);
 	// 容器高度
@@ -130,6 +134,7 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 				top: 0, // 项目顶部与容器顶部的距离
 				left: 0, // 项目的左边与容器左边的距离
 				height: 0, // 项目高度
+				visualHeight: 0, // 项目高度
 				colId: 0, // 项目所在纵列
 				offsetY: 0, // 项目偏移距离
 				data: itemsData[prevLen + i],
@@ -154,7 +159,9 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 		// 项目的高度
 		const wrapperEl = wrapperRef.current;
 		if (wrapperEl == null) { return; }
-		const itemHs = Array.prototype.map.call<NodeListOf<ChildNode>, any, number[]>(wrapperEl.childNodes, (node: HTMLDivElement) => node.clientHeight);
+		const itemHs = Array.prototype.map.call<NodeListOf<ChildNode>, any, number[]>(wrapperEl.childNodes, (node: HTMLDivElement) => node.children[0].clientHeight);
+		// 被最大高度和最小高度限定的项目高度
+		const visualHs = itemHs.map(height => height > _maxHeight ? _maxHeight : height < _minHeight ? _minHeight : height);
 		// 列的左边距离
 		const leftSideColLeft = _disableWrap ? disableGapX ? 0 : ((_width - _itemWidth * _colsNum - g * (_colsNum - 1)) / 2) : 0;
 		const colLs = [leftSideColLeft];
@@ -173,7 +180,7 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 		const itemCs: number[] = [];
 		// 第一横排的容器高度、项目左边距离、项目顶部距离；纵列最下面项目的 id
 		for (let i = 0; i < _colsNum; ++i) {
-			wrapperH = Math.max(wrapperH, itemHs[i]);
+			wrapperH = Math.max(wrapperH, visualHs[i]);
 			itemLs.push(colLs[i]);
 			itemTs.push(0);
 			itemCs.push(i);
@@ -182,9 +189,9 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 		// 第二行开始到最后一个项目的容器高度、项目左边距离、项目顶部距离；纵列最下面项目的 id
 		for (let i = _colsNum; i < itemsLen; ++i) {
 			// 当前最短的纵列的列 id 与这一列最底部的项目 id
-			const { minColId, minItemId } = getMinHeight(_colsNum, colBottomIds, itemTs, itemHs);
-			const currentTop = itemTs[minItemId] + itemHs[minItemId] + _gapY;
-			wrapperH = Math.max(currentTop + itemHs[i], wrapperH);
+			const { minColId, minItemId } = getMinHeight(_colsNum, colBottomIds, itemTs, visualHs);
+			const currentTop = itemTs[minItemId] + visualHs[minItemId] + _gapY;
+			wrapperH = Math.max(currentTop + visualHs[i], wrapperH);
 			itemLs.push(colLs[minColId]);
 			itemTs.push(currentTop);
 			itemCs.push(minColId);
@@ -197,7 +204,8 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 			id: i,
 			top: itemTs[i],
 			left: itemLs[i],
-			height: itemHs[i],
+			height: visualHs[i],
+			visualHeight: visualHs[i],
 			colId: itemCs[i],
 			offsetY: 0,
 			data: itemsData[i],
@@ -266,6 +274,7 @@ function Masonry({ disableGapX, width, disableWrap, itemWidth, gapX, gapY, colsN
 						left: `${item.left}px`,
 						top: `${item.top}px`,
 						width: `${_itemWidth}px`,
+						height: `${item.visualHeight}px`
 					}}>
 					{ItemComp && <ItemComp
 						{...item.data}

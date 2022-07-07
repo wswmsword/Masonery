@@ -13,6 +13,7 @@
   transition: transform .3s;
   cursor    : pointer;
   z-index   : 1;
+  overflow  : hidden;
 }
 
 .transition_top {
@@ -32,7 +33,7 @@
 }
 
 .transparent {
-  opacity: 0;
+  opacity   : 0;
   transition: opacity .3s;
 }
 
